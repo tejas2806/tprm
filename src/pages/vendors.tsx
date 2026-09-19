@@ -25,7 +25,7 @@ import type { RiskTier, VendorStatus } from "@/types"
 import { Button } from "@/components/ui/button"
 
 export function VendorsPage() {
-  const { now, vendors } = useTprm()
+  const { now, vendors, ready, loadError } = useTprm()
   const [q, setQ] = useState("")
   const [tier, setTier] = useState<string>("all")
   const [status, setStatus] = useState<string>("all")
@@ -107,6 +107,27 @@ export function VendorsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {!ready && rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="px-4 py-10 text-sm text-muted-foreground">
+                  Loading the register from Firestore…
+                </TableCell>
+              </TableRow>
+            ) : null}
+            {ready && loadError && rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="px-4 py-10 text-sm text-risk-critical">
+                  Could not load vendors. {loadError}
+                </TableCell>
+              </TableRow>
+            ) : null}
+            {ready && !loadError && rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="px-4 py-10 text-sm text-muted-foreground">
+                  The register is empty. Refresh the page to seed Northline vendors, or onboard one from Intake.
+                </TableCell>
+              </TableRow>
+            ) : null}
             {rows.map((vendor) => {
               const fresh = vendor.updatedAt ? now - new Date(vendor.updatedAt).getTime() < 8_000 : false
               return (

@@ -10,6 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { AssignQuestionnaireForm } from "@/components/assign-questionnaire"
 import { RiskDna, ScoreRing, StatusChip, Surface, TierMark } from "@/components/marks"
 import { formatDate, relativeTime } from "@/lib/format"
 import { LiveNumber } from "@/components/live-number"
@@ -148,7 +149,7 @@ export function VendorDossier() {
               {relatedAssess.map((a) => (
                 <li key={a.id}>
                   <Link to={`/assessments/${a.id}`} className="text-sm hover:text-primary">
-                    {a.template} · {a.stage} · due {formatDate(a.due)}
+                    {a.template} · {a.stage} · {a.progress}% · due {formatDate(a.due)}
                   </Link>
                 </li>
               ))}
@@ -156,6 +157,13 @@ export function VendorDossier() {
                 <p className="text-sm text-muted-foreground">No live assessment.</p>
               ) : null}
             </ul>
+            <div className="mt-5 border-t border-border pt-4">
+              <h2 className="mb-1 text-lg font-semibold tracking-tight">Assign questionnaire</h2>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Copies the Firestore question bank onto a new assessment for this vendor.
+              </p>
+              <AssignQuestionnaireForm vendorId={vendor.id} />
+            </div>
             <h2 className="mt-6 mb-3 text-lg font-semibold tracking-tight">Findings</h2>
             <ul className="space-y-2">
               {relatedFindings.map((f) => (

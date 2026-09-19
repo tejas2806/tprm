@@ -4,8 +4,11 @@ import { Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { EvidenceLink } from "@/components/evidence-link"
+import { QuestionRationale } from "@/components/question-rationale"
 import { Surface } from "@/components/marks"
 import { cn } from "cn"
+import { resolveQuestionMeta } from "@/data/questionnaire-bank"
 import { useTprm } from "@/state/tprm-store"
 import { formatDate } from "@/lib/format"
 import { LiveNumber } from "@/components/live-number"
@@ -101,7 +104,10 @@ export function AssessmentWorkspace() {
                 />
                 <span>
                   <span className="block font-medium">{item.domain}</span>
-                  <span className="line-clamp-2 text-xs text-muted-foreground">{item.prompt}</span>
+                  <span className="line-clamp-2 text-xs text-muted-foreground">
+                    {resolveQuestionMeta(item).kind === "yes_no" ? "Yes/No · " : ""}
+                    {item.prompt}
+                  </span>
                 </span>
               </button>
             ))}
@@ -110,13 +116,44 @@ export function AssessmentWorkspace() {
           {question ? (
             <>
               <Surface key={question.id} className="fade-in p-5">
-                <p className="font-mono text-[11px] text-muted-foreground">{question.domain}</p>
+                <p className="font-mono text-[11px] text-muted-foreground">
+                  {question.domain}
+                  {resolveQuestionMeta(question).kind === "yes_no" ? " · Yes / No" : " · Free text"}
+                </p>
                 <h2 className="mt-1 text-lg font-semibold tracking-tight">{question.prompt}</h2>
-                <div className="mt-4 rounded-xl bg-muted/40 p-4 text-sm leading-relaxed">
-                  {question.answer}
+                <div className="mt-3">
+                  <QuestionRationale text={resolveQuestionMeta(question).rationale} />
                 </div>
+                <div className="mt-4 rounded-xl bg-muted/40 p-4 text-sm leading-relaxed">
+                  {question.answer.trim() ? (
+                    resolveQuestionMeta(question).kind === "yes_no" ? (
+                      <span className="font-semibold">{question.answer}</span>
+                    ) : (
+                      question.answer
+                    )
+                  ) : (
+                    "No vendor response yet."
+                  )}
+                </div>
+                {question.comment?.trim() ? (
+                  <div className="mt-3 rounded-xl bg-muted/25 p-4 text-sm leading-relaxed">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Vendor comment</p>
+                    <p className="mt-1">{question.comment}</p>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-muted-foreground">No vendor comment.</p>
+                )}
                 <p className="mt-3 font-mono text-xs text-muted-foreground">
-                  Evidence · {question.evidence}
+                  Evidence ·{" "}
+                  {question.evidence.trim() || question.evidenceUrl ? (
+                    <EvidenceLink
+                      href={question.evidenceUrl}
+                      label={question.evidence.trim() || "Open document"}
+                      className="font-mono text-xs"
+                    />
+                  ) : (
+                    "—"
+                  )}
                 </p>
                 <div className="mt-6 flex gap-2">
                   <Button

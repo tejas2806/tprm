@@ -1,0 +1,195 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath(tid) {
+      return /databases/$(database)/documents/tenants/$(tid)/users/$(request.auth.uid);
+    }
+
+    function emailPath(tid) {
+      return /databases/$(database)/documents/tenants/$(tid)/emails/$(request.auth.token.email);
+    }
+
+    function hasUidProfile(tid) {
+      return signedIn() && exists(profilePath(tid));
+    }
+
+    function hasEmailProfile(tid) {
+      return signedIn()
+        && request.auth.token.email is string
+        && exists(emailPath(tid));
+    }
+
+    function uidRole(tid) {
+      return get(profilePath(tid)).data.role;
+    }
+
+    function emailRole(tid) {
+      return get(emailPath(tid)).data.role;
+    }
+
+    function deskRole(tid) {
+      return hasUidProfile(tid) ? uidRole(tid)
+        : hasEmailProfile(tid) ? emailRole(tid)
+        : "";
+    }
+
+    function vendorOf(tid) {
+      return hasUidProfile(tid)
+        ? get(profilePath(tid)).data.vendorId
+        : get(emailPath(tid)).data.vendorId;
+    }
+
+    function isAdmin(tid) {
+      return deskRole(tid) == "admin";
+    }
+
+    function isInfosec(tid) {
+      return deskRole(tid) == "admin" || deskRole(tid) == "infosec";
+    }
+
+    function isVendor(tid) {
+      return deskRole(tid) == "vendor";
+    }
+
+    function ownsVendor(tid, vid) {
+      return isVendor(tid) && vendorOf(tid) == vid;
+    }
+
+    function ownsVendorId(tid, vendorId) {
+      return isVendor(tid) && vendorOf(tid) == vendorId;
+    }
+
+    function ownsAssessment(tid, aid) {
+      return isVendor(tid)
+        && exists(/databases/$(database)/documents/tenants/$(tid)/assessments/$(aid))
+        && get(/databases/$(database)/documents/tenants/$(tid)/assessments/$(aid)).data.vendorId == vendorOf(tid);
+    }
+
+    function tenantDoc(tid) {
+      return /databases/$(database)/documents/tenants/$(tid);
+    }
+
+    function bootstrapping(tid) {
+      return signedIn() && (
+        !exists(tenantDoc(tid)) || get(tenantDoc(tid)).data.seeded != true
+      );
+    }
+
+    match /tenants/{tid} {
+      allow read: if signedIn();
+      allow create, update: if isInfosec(tid) || bootstrapping(tid);
+      allow delete: if isAdmin(tid);
+
+      match /emails/{addr} {
+        allow read: if signedIn() && request.auth.token.email == addr;
+        allow write: if isAdmin(tid) || isInfosec(tid) || bootstrapping(tid)
+          || (signedIn() && request.auth.token.email == addr);
+      }
+
+      match /users/{uid} {
+        allow get: if signedIn() && request.auth.uid == uid;
+        allow get: if isInfosec(tid);
+        allow get: if signedIn() && resource.data.email == request.auth.token.email;
+        allow list: if isInfosec(tid);
+        allow create: if signedIn() && (
+          (request.auth.uid == uid && request.resource.data.email == request.auth.token.email)
+          || isAdmin(tid)
+          || isInfosec(tid)
+          || bootstrapping(tid)
+        );
+        allow update: if signedIn() && (request.auth.uid == uid || isAdmin(tid));
+        allow delete: if isAdmin(tid);
+      }
+
+      match /vendors/{vid} {
+        allow get: if isInfosec(tid) || ownsVendor(tid, vid);
+        allow list: if isInfosec(tid) || bootstrapping(tid);
+        allow create, delete: if isInfosec(tid) || bootstrapping(tid);
+        allow update: if isInfosec(tid) || ownsVendor(tid, vid);
+      }
+
+      match /valuations/{vid} {
+        allow get: if isInfosec(tid) || ownsVendor(tid, vid);
+        allow list: if isInfosec(tid);
+        allow write: if isInfosec(tid) || bootstrapping(tid);
+      }
+
+      match /assessments/{aid} {
+        allow get: if isInfosec(tid) || ownsVendorId(tid, resource.data.vendorId);
+        allow list: if isInfosec(tid)
+          || (isVendor(tid) && resource.data.vendorId == vendorOf(tid));
+        allow create, delete: if isInfosec(tid) || bootstrapping(tid);
+        allow update: if isInfosec(tid) || ownsVendorId(tid, resource.data.vendorId);
+
+        match /questions/{qid} {
+          allow get, list: if isInfosec(tid) || ownsAssessment(tid, aid)
+            || ownsVendorId(tid, resource.data.vendorId);
+          allow create: if isInfosec(tid) || bootstrapping(tid)
+            || (isVendor(tid) && request.resource.data.vendorId == vendorOf(tid));
+          allow update, delete: if isInfosec(tid) || ownsAssessment(tid, aid)
+            || ownsVendorId(tid, resource.data.vendorId);
+        }
+      }
+
+      match /findings/{fid} {
+        allow get: if isInfosec(tid) || ownsVendorId(tid, resource.data.vendorId);
+        allow list: if isInfosec(tid)
+          || (isVendor(tid) && resource.data.vendorId == vendorOf(tid));
+        allow create, delete: if isInfosec(tid) || bootstrapping(tid);
+        allow update: if isInfosec(tid) || ownsVendorId(tid, resource.data.vendorId);
+      }
+
+      match /signals/{sid} {
+        allow get: if isInfosec(tid) || ownsVendorId(tid, resource.data.vendorId);
+        allow list: if isInfosec(tid)
+          || (isVendor(tid) && resource.data.vendorId == vendorOf(tid));
+        allow write: if isInfosec(tid) || bootstrapping(tid);
+      }
+
+      match /activities/{aid} {
+        allow read: if isInfosec(tid);
+        allow create: if isInfosec(tid) || isVendor(tid) || bootstrapping(tid);
+        allow update, delete: if isAdmin(tid);
+      }
+
+      match /questionnaires/{qid} {
+        allow read: if isInfosec(tid);
+        allow write: if isInfosec(tid) || bootstrapping(tid);
+
+        match /items/{iid} {
+          allow read: if isInfosec(tid);
+          allow write: if isInfosec(tid) || bootstrapping(tid);
+        }
+      }
+
+      match /metrics/{mid} {
+        allow read, write: if isInfosec(tid) || bootstrapping(tid);
+      }
+
+      match /policies/{pid} {
+        allow read: if signedIn();
+        allow write: if isAdmin(tid) || bootstrapping(tid);
+      }
+
+      match /evidenceFiles/{fid} {
+        allow get: if isInfosec(tid) || ownsVendorId(tid, resource.data.vendorId);
+        allow list: if isInfosec(tid)
+          || (isVendor(tid) && resource.data.vendorId == vendorOf(tid));
+        allow create: if isInfosec(tid)
+          || (isVendor(tid) && request.resource.data.vendorId == vendorOf(tid));
+        allow update, delete: if isInfosec(tid) || ownsVendorId(tid, resource.data.vendorId);
+
+        match /chunks/{cid} {
+          allow get, list: if isInfosec(tid) || ownsVendorId(tid, resource.data.vendorId);
+          allow create, update: if isInfosec(tid)
+            || (isVendor(tid) && request.resource.data.vendorId == vendorOf(tid));
+          allow delete: if isInfosec(tid) || ownsVendorId(tid, resource.data.vendorId);
+        }
+      }
+    }
+  }
+}

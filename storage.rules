@@ -1,0 +1,42 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uidProfilePath(tid) {
+      return /databases/(default)/documents/tenants/$(tid)/users/$(request.auth.uid);
+    }
+
+    function emailProfilePath(tid) {
+      return /databases/(default)/documents/tenants/$(tid)/emails/$(request.auth.token.email);
+    }
+
+    function hasUid(tid) {
+      return signedIn() && firestore.exists(uidProfilePath(tid));
+    }
+
+    function desk(tid) {
+      return hasUid(tid)
+        ? firestore.get(uidProfilePath(tid)).data.role in ["admin", "infosec"]
+        : firestore.get(emailProfilePath(tid)).data.role in ["admin", "infosec"];
+    }
+
+    function vendorOf(tid) {
+      return hasUid(tid)
+        ? firestore.get(uidProfilePath(tid)).data.vendorId
+        : firestore.get(emailProfilePath(tid)).data.vendorId;
+    }
+
+    function ownsVendor(tid, vid) {
+      return signedIn() && vendorOf(tid) == vid;
+    }
+
+    match /tenants/{tid}/vendors/{vid}/evidence/{allPaths=**} {
+      allow read: if desk(tid) || ownsVendor(tid, vid);
+      allow write: if (desk(tid) || ownsVendor(tid, vid))
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+  }
+}

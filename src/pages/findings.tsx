@@ -63,6 +63,9 @@ export function FindingsPage() {
                   {" · "}
                   {finding.owner} · opened {formatDate(finding.opened)} · {clock}
                 </p>
+                {finding.vendorNote ? (
+                  <p className="mt-1 text-xs text-primary">Vendor response · {finding.vendorNote}</p>
+                ) : null}
               </div>
               <Select
                 value={finding.status}

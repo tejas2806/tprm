@@ -17,7 +17,18 @@ export type AssessmentStage =
 export type FindingStatus = "open" | "in_progress" | "accepted" | "closed"
 export type SignalKind = "breach" | "cve" | "cert" | "rating" | "news" | "expiry" | "ai"
 export type AiVerdict = "ok" | "flag" | "gap"
-export type ActivityKind = "signal" | "finding" | "assessment" | "intake" | "ack" | "rating"
+export type ActivityKind = "signal" | "finding" | "assessment" | "intake" | "ack" | "rating" | "access"
+export type UserRole = "admin" | "infosec" | "vendor"
+
+export type SessionUser = {
+  id: string
+  email: string
+  name: string
+  title: string
+  role: UserRole
+  vendorId?: string
+  vendorName?: string
+}
 
 export type ActivityEvent = {
   id: string
@@ -76,12 +87,27 @@ export type Vendor = {
   updatedAt?: string
 }
 
+export type QuestionKind = "yes_no" | "text"
+
+export type QuestionBankItem = {
+  id: string
+  domain: string
+  prompt: string
+  kind: QuestionKind
+  rationale: string
+  order: number
+}
+
 export type QuestionItem = {
   id: string
   domain: string
   prompt: string
+  kind?: QuestionKind
+  rationale?: string
   answer: string
+  comment?: string
   evidence: string
+  evidenceUrl?: string
   ai: { verdict: AiVerdict; note: string; confidence: number }
   reviewed?: boolean
 }
@@ -91,6 +117,7 @@ export type Assessment = {
   vendorId: string
   vendorName: string
   template: string
+  questionnaireId?: string
   stage: AssessmentStage
   due: string
   owner: string
@@ -110,6 +137,7 @@ export type Finding = {
   owner: string
   control: string
   opened: string
+  vendorNote?: string
 }
 
 export type Signal = {
@@ -132,6 +160,28 @@ export type Questionnaire = {
   usedBy: number
   focus: string
   updated: string
+  questions: QuestionBankItem[]
+}
+
+export type Policy = {
+  criticalSlaDays: number
+  highSlaDays: number
+  watchtower: boolean
+  vendorPortal: boolean
+  aiOverlay: boolean
+  updatedAt: string
+}
+
+export type DirectoryUser = {
+  id: string
+  email: string
+  name: string
+  title: string
+  role: UserRole
+  vendorId?: string
+  vendorName?: string
+  active: boolean
+  createdAt: string
 }
 
 export type IntakeDraft = {

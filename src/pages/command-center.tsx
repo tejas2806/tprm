@@ -244,6 +244,7 @@ export function CommandCenter() {
                     item.kind === "intake" && "bg-primary",
                     item.kind === "assessment" && "bg-signal",
                     item.kind === "rating" && "bg-risk-moderate",
+                    item.kind === "access" && "bg-primary",
                   )}
                 />
                 <div className="min-w-0">

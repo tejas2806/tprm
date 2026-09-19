@@ -40,18 +40,27 @@ export function IntakePage() {
   const [draft, setDraft] = useState<IntakeDraft>(empty)
   const { addVendorFromIntake } = useTprm()
   const navigate = useNavigate()
+  const [saving, setSaving] = useState(false)
   const scored = useMemo(() => scoreInherent(draft), [draft])
   const tier = tierFromScore(scored.score)
 
-  function submit() {
+  async function submit() {
     if (!draft.name.trim()) {
       toast.error("Name the vendor before launching the file.")
       setStep(0)
       return
     }
-    const { vendor } = addVendorFromIntake(draft)
-    toast.success(`${vendor.name} opened on the register as ${tier}.`)
-    navigate(`/vendors/${vendor.id}`)
+    setSaving(true)
+    try {
+      const { vendor } = await addVendorFromIntake(draft)
+      toast.success(`${vendor.name} opened on the register as ${tier}.`)
+      navigate(`/vendors/${vendor.id}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not write the vendor to Firestore."
+      toast.error(message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -251,9 +260,13 @@ export function IntakePage() {
             Back
           </Button>
           {step < 3 ? (
-            <Button onClick={() => setStep((s) => s + 1)}>Continue</Button>
+            <Button type="button" onClick={() => setStep((s) => s + 1)}>
+              Continue
+            </Button>
           ) : (
-            <Button onClick={submit}>Launch on the register</Button>
+            <Button type="button" onClick={() => void submit()} disabled={saving}>
+              {saving ? "Launching…" : "Launch on the register"}
+            </Button>
           )}
         </div>
       </Surface>
