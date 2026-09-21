@@ -18,6 +18,7 @@ import {
   Users,
 } from "lucide-react"
 import { formatAuthError, homeFor, useAuth } from "@/state/auth"
+import { isFirebaseConfigured } from "@/lib/firebase"
 import { cn } from "cn"
 import type { UserRole } from "@/types"
 
@@ -380,6 +381,11 @@ export function LoginPage() {
             </div>
 
             {error ? <p className="text-xs text-risk-critical">{error}</p> : null}
+            {!isFirebaseConfigured() ? (
+              <p className="text-xs text-risk-critical">
+                Firebase env vars are missing. On Vercel, set VITE_FIREBASE_* for Production and Preview, then redeploy.
+              </p>
+            ) : null}
             {hint && !error ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
 
             <button

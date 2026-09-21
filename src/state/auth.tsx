@@ -31,6 +31,10 @@ function authErrorMessage(error: unknown) {
   if (code === "auth/operation-not-allowed") {
     return "Email/password sign-in is not enabled in Firebase Authentication."
   }
+  if (code === "auth/unauthorized-domain") {
+    const host = typeof window !== "undefined" ? window.location.hostname : "this domain"
+    return `Firebase Auth is blocking ${host}. Add that hostname under Authentication → Settings → Authorized domains.`
+  }
   if (code === "auth/weak-password") {
     return "Password must be at least 6 characters."
   }
@@ -125,7 +129,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const auth = getFirebaseAuth()
-    if (auth && isFirebaseConfigured()) {
+    if (!isFirebaseConfigured()) {
+      if (import.meta.env.PROD) {
+        throw new Error("Firebase is not configured. Set VITE_FIREBASE_* environment variables on Vercel and redeploy.")
+      }
+    } else if (auth) {
       const cred = await signInOrCreateDeskUser(auth, email.trim(), password)
       const session = await sessionFromFirebase(cred.user)
       setUser(session)
